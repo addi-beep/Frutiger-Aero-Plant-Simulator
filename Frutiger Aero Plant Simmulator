@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Frutiger Garden Deluxe</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+  font-family: Arial;
+  background: linear-gradient(to bottom, #b3e5fc, #e1f5fe);
+}
+
+/* 🌱 plant */
+#plant {
+  font-size: 110px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.5s ease;
+}
+
+/* 💧 button */
+button {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+/* 💰 UI */
+#coins {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(255,255,255,0.5);
+  padding: 10px;
+  border-radius: 12px;
+}
+
+/* 🫧 bubbles */
+.bubble {
+  position: absolute;
+  bottom: -50px;
+  width: 15px;
+  height: 15px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 50%;
+  animation: rise 6s linear infinite;
+}
+
+@keyframes rise {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-110vh); opacity: 0; }
+}
+
+/* ☔ rain */
+.drop {
+  position: absolute;
+  width: 2px;
+  height: 15px;
+  background: rgba(255,255,255,0.6);
+  animation: fall 1s linear infinite;
+}
+
+@keyframes fall {
+  from { transform: translateY(-100vh); }
+  to { transform: translateY(100vh); }
+}
+
+/* 🐟 fish */
+.fish {
+  position: absolute;
+  font-size: 30px;
+  animation: swim 10s linear infinite;
+}
+
+@keyframes swim {
+  from { left: -50px; }
+  to { left: 110vw; }
+}
+</style>
+</head>
+
+<body>
+
+<div id="coins">💰 Water Points: 0</div>
+
+<div id="plant">🌱</div>
+
+<button onclick="waterPlant()">💧 Water Plant</button>
+
+<script>
+let stage = 0;
+let coins = 0;
+
+/* 🌱 plant growth */
+function waterPlant() {
+  stage++;
+  coins += 5;
+
+  document.getElementById("coins").innerText = "💰 Water Points: " + coins;
+
+  const plant = document.getElementById("plant");
+
+  if (stage === 1) plant.textContent = "🌿";
+  if (stage === 2) plant.textContent = "🌳";
+  if (stage === 3) plant.textContent = "🌸";
+}
+
+/* 🫧 bubbles */
+function createBubble() {
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.style.left = Math.random() * window.innerWidth + "px";
+  bubble.style.animationDuration = (3 + Math.random() * 5) + "s";
+  document.body.appendChild(bubble);
+
+  setTimeout(() => bubble.remove(), 8000);
+}
+setInterval(createBubble, 400);
+
+/* ☔ rain */
+function createRain() {
+  const drop = document.createElement("div");
+  drop.className = "drop";
+  drop.style.left = Math.random() * window.innerWidth + "px";
+  drop.style.animationDuration = (0.5 + Math.random()) + "s";
+  document.body.appendChild(drop);
+
+  setTimeout(() => drop.remove(), 2000);
+}
+setInterval(createRain, 100);
+
+/* 🐟 fish */
+function createFish() {
+  const fish = document.createElement("div");
+  fish.className = "fish";
+  fish.textContent = "🐟";
+  fish.style.top = Math.random() * window.innerHeight + "px";
+  fish.style.animationDuration = (8 + Math.random() * 5) + "s";
+  document.body.appendChild(fish);
+
+  setTimeout(() => fish.remove(), 12000);
+}
+setInterval(createFish, 3000);
+</script>
+
+</body>
+</html>

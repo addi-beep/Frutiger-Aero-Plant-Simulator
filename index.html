@@ -2,32 +2,30 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Aqua Aero Evolution Engine v3</title>
+<title>Aqua Aero Hybrid Engine</title>
 
 <style>
 body{
 margin:0;
 overflow:hidden;
 font-family:sans-serif;
-background:#061524;
+background:radial-gradient(circle,#061524,#02070d);
 color:white;
 }
 
-/* 🌊 water shader illusion */
+/* 🌊 water */
 #water{
 position:fixed;
 width:100%;
 height:100%;
-background:
-radial-gradient(circle at 50% 50%, rgba(0,255,255,0.08), transparent 60%),
-radial-gradient(circle at 30% 30%, rgba(0,120,255,0.05), transparent 50%);
+background:radial-gradient(circle at 50% 50%,rgba(0,255,255,0.07),transparent);
 animation:flow 6s infinite alternate ease-in-out;
 pointer-events:none;
 }
 
 @keyframes flow{
 0%{transform:scale(1)}
-100%{transform:scale(1.05)}
+100%{transform:scale(1.04)}
 }
 
 /* 🪟 tank */
@@ -48,30 +46,28 @@ border:1px solid rgba(255,255,255,0.2);
 /* 🐠 fish */
 .fish{
 position:absolute;
-width:45px;
-height:22px;
+width:50px;
+height:25px;
 border-radius:50px;
 cursor:pointer;
-transition:transform 0.2s;
+background:linear-gradient(135deg,#4dd2ff,#ffffff33);
+box-shadow:0 0 15px rgba(0,255,255,0.3);
 }
 
-/* 🪸 coral (evolving) */
-.coral{
+/* 🌿 plants */
+.plant{
 position:absolute;
 bottom:0;
-width:10px;
-background:linear-gradient(to top,#ff4da6,#ffccff);
+width:12px;
 border-radius:20px;
+background:linear-gradient(to top,#00ff99,#007755);
+transition:height 1s;
 }
 
-/* 🐙 boss */
-.boss{
-position:absolute;
-width:120px;
-height:60px;
-border-radius:50px;
-background:linear-gradient(to right,#4400ff,#00ffff);
-opacity:0.9;
+/* 🪸 rare plant glow */
+.plant.rare{
+background:linear-gradient(to top,#ff4df0,#ffd1ff);
+box-shadow:0 0 15px rgba(255,100,255,0.4);
 }
 
 /* UI */
@@ -93,16 +89,6 @@ border:none;
 cursor:pointer;
 background:rgba(255,255,255,0.25);
 }
-
-/* 🧬 breeding zone */
-#breeder{
-position:absolute;
-bottom:20px;
-left:20px;
-padding:10px;
-background:rgba(255,255,255,0.1);
-border-radius:12px;
-}
 </style>
 </head>
 
@@ -114,16 +100,12 @@ border-radius:12px;
 
 <div class="ui">
 💰 Coins: <span id="coins">100</span><br>
+🌿 Plants: <span id="plants">0</span><br>
 
-<button onclick="spawnFish()">Buy Fish</button>
-<button onclick="spawnBoss()">Spawn Boss</button>
-<button onclick="expandTank()">Expand Tank</button>
-</div>
-
-<!-- 🧬 breeding UI -->
-<div id="breeder">
-🧬 Breeding Zone<br>
-Drop 2 fish here
+<button onclick="plantSeed()">Plant Seed (1💰)</button>
+<button onclick="buyFish()">Buy Fish (10💰)</button>
+<button onclick="harvestAll()">Harvest</button>
+<button onclick="breed()">Breed</button>
 </div>
 
 <script>
@@ -132,168 +114,115 @@ Drop 2 fish here
 💰 CORE
 ====================== */
 let coins=100;
-let fishList=[];
-let selected=[];
 
 /* ======================
-🎵 AMBIENT SOUND (procedural)
+🌿 PLANTS SYSTEM
 ====================== */
-function ambient(){
-try{
-const ctx=new (window.AudioContext||window.webkitAudioContext)();
-const o=ctx.createOscillator();
-const g=ctx.createGain();
+function plantSeed(){
 
-o.type="sine";
-o.frequency.value=40;
+if(coins<1) return;
+coins--;
 
-g.gain.value=0.03;
+const p=document.createElement("div");
+p.className="plant";
 
-o.connect(g);
-g.connect(ctx.destination);
+let growth=0;
+let rare=Math.random()>0.85;
 
-o.start();
-}catch(e){}
+if(rare) p.classList.add("rare");
+
+p.style.left=Math.random()*800+"px";
+p.style.height="10px";
+
+/* 🌱 growth cycle */
+let grow=setInterval(()=>{
+growth++;
+
+p.style.height=(10+growth*6)+"px";
+
+if(growth>=10){
+clearInterval(grow);
 }
-ambient();
+},1000);
 
-/* ======================
-🐠 DNA SYSTEM
-====================== */
-function dna(parent=null){
-return{
-speed:parent?parent.speed+Math.random():1,
-color:parent?parent.color:randomColor(),
-aggression:Math.random()
+/* 💰 harvest */
+p.onclick=()=>{
+if(growth<5) return;
+
+coins += rare ? 8 : 3;
+p.remove();
+update();
 };
-}
 
-function randomColor(){
-let c=["#ff4d6d","#4dffea","#ffd24d","#a64dff","#4dff6a"];
-return c[Math.floor(Math.random()*c.length)];
+document.getElementById("tank").appendChild(p);
+update();
 }
 
 /* ======================
-🐠 FISH AI
+🐠 FISH SYSTEM
 ====================== */
-function spawnFish(parent){
+function buyFish(){
 
 if(coins<10) return;
 coins-=10;
 
-let d=dna(parent);
-
 const f=document.createElement("div");
 f.className="fish";
-f.style.background=d.color;
 
-let x=Math.random()*600;
+let x=Math.random()*700;
 let y=100+Math.random()*300;
 
 f.style.left=x+"px";
 f.style.top=y+"px";
 
-/* click = select for breeding */
-f.onclick=()=>{
-selected.push(d);
-if(selected.length===2){
-breed(selected[0],selected[1]);
-selected=[];
-}
-};
-
-/* AI movement */
+/* 🐠 swim */
 setInterval(()=>{
-x+=Math.sin(Date.now()*0.001)*d.speed;
-y+=Math.cos(Date.now()*0.002)*2;
+x += Math.sin(Date.now()*0.001)*2;
+y += Math.cos(Date.now()*0.001)*1.5;
 
 f.style.left=x+"px";
 f.style.top=y+"px";
 },50);
 
+/* click info */
+f.onclick=()=>{
+alert("🐠 Healthy aquarium fish");
+};
+
 /* income */
 setInterval(()=>{
 coins+=1;
 update();
-},3000);
+},4000);
 
 document.getElementById("tank").appendChild(f);
-fishList.push(d);
-
 update();
 }
 
 /* ======================
-🧬 BREEDING SYSTEM
+🧬 BREEDING (needs rare plants)
 ====================== */
-function breed(a,b){
+function breed(){
 
-let child={
-speed:(a.speed+b.speed)/2 + Math.random(),
-color:Math.random()>0.5?a.color:b.color,
-aggression:Math.random()
-};
+if(document.querySelectorAll(".plant.rare").length<1){
+alert("Need a rare plant (Aero Bloom) to breed!");
+return;
+}
 
 alert("🧬 New fish born!");
 
-spawnFish(child);
+buyFish();
+buyFish();
 }
 
 /* ======================
-🐙 BOSS SYSTEM
+🌿 HARVEST ALL
 ====================== */
-function spawnBoss(){
+function harvestAll(){
 
-const b=document.createElement("div");
-b.className="boss";
-
-let x=-150;
-
-setInterval(()=>{
-x+=2;
-b.style.left=x+"px";
-},30);
-
-document.getElementById("tank").appendChild(b);
-}
-
-/* ======================
-🪸 EVOLVING CORAL
-====================== */
-setInterval(()=>{
-const c=document.createElement("div");
-c.className="coral";
-
-c.style.height=(30+Math.random()*100)+"px";
-c.style.left=Math.random()*800+"px";
-
-document.getElementById("tank").appendChild(c);
-},5000);
-
-/* ======================
-📱 MOBILE DRAG SUPPORT
-====================== */
-let dragging=null;
-
-document.addEventListener("touchstart",e=>{
-dragging=e.target;
+document.querySelectorAll(".plant").forEach(p=>{
+p.click();
 });
-
-document.addEventListener("touchmove",e=>{
-if(!dragging) return;
-let t=e.touches[0];
-dragging.style.left=t.clientX+"px";
-dragging.style.top=t.clientY+"px";
-});
-
-/* ======================
-🏆 PROGRESSION TREE
-====================== */
-function expandTank(){
-if(coins<50) return;
-coins-=50;
-
-alert("🏆 Tank Expanded!");
 }
 
 /* ======================
@@ -301,6 +230,8 @@ alert("🏆 Tank Expanded!");
 ====================== */
 function update(){
 document.getElementById("coins").innerText=coins;
+document.getElementById("plants").innerText=
+document.querySelectorAll(".plant").length;
 }
 
 update();

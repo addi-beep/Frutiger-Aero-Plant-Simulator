@@ -1,157 +1,241 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Frutiger Garden Deluxe</title>
+<meta charset="UTF-8">
+<title>Storm Window Plant Simulator</title>
 
 <style>
 body {
   margin: 0;
   overflow: hidden;
-  height: 100vh;
-  font-family: Arial;
-  background: linear-gradient(to bottom, #b3e5fc, #e1f5fe);
+  font-family: sans-serif;
+  background: #0f1620;
 }
 
-/* 🌱 plant */
-#plant {
-  font-size: 110px;
+/* 🌧️ rain canvas */
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* ⚡ lightning flash */
+.flash {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 🪟 window */
+.window {
   position: absolute;
-  left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
-  transition: all 0.5s ease;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  width: 80%;
+  height: 70%;
+  border-radius: 25px;
+
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 0 50px rgba(0,0,0,0.6);
+  z-index: 2;
 }
 
-/* 💧 button */
-button {
+/* 🌿 sill */
+.sill {
   position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 12px 20px;
-  border: none;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.6);
-  backdrop-filter: blur(10px);
+  bottom: 0;
+  width: 100%;
+  height: 90px;
+  background: rgba(255,255,255,0.15);
+}
+
+/* 🌱 garden */
+#garden {
+  position: absolute;
+  bottom: 90px;
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+}
+
+/* 🪴 plant */
+.plant {
+  width: 60px;
+  height: 100px;
+  position: relative;
   cursor: pointer;
 }
 
-/* 💰 UI */
-#coins {
+.stem {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  height: 100%;
+  background: #2f7d4c;
+  transform: translateX(-50%);
+}
+
+.leaf {
+  position: absolute;
+  width: 18px;
+  height: 10px;
+  background: #3fbf6a;
+  border-radius: 50%;
+}
+
+/* 🧊 UI glass */
+.ui {
   position: absolute;
   top: 20px;
   left: 20px;
-  background: rgba(255,255,255,0.5);
-  padding: 10px;
-  border-radius: 12px;
+  padding: 12px 18px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  color: white;
 }
 
-/* 🫧 bubbles */
-.bubble {
-  position: absolute;
-  bottom: -50px;
-  width: 15px;
-  height: 15px;
-  background: rgba(255,255,255,0.6);
-  border-radius: 50%;
-  animation: rise 6s linear infinite;
-}
-
-@keyframes rise {
-  from { transform: translateY(0); opacity: 1; }
-  to { transform: translateY(-110vh); opacity: 0; }
-}
-
-/* ☔ rain */
-.drop {
-  position: absolute;
-  width: 2px;
-  height: 15px;
-  background: rgba(255,255,255,0.6);
-  animation: fall 1s linear infinite;
-}
-
-@keyframes fall {
-  from { transform: translateY(-100vh); }
-  to { transform: translateY(100vh); }
-}
-
-/* 🐟 fish */
-.fish {
-  position: absolute;
-  font-size: 30px;
-  animation: swim 10s linear infinite;
-}
-
-@keyframes swim {
-  from { left: -50px; }
-  to { left: 110vw; }
+button {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: rgba(255,255,255,0.25);
 }
 </style>
 </head>
 
 <body>
 
-<div id="coins">💰 Water Points: 0</div>
+<canvas id="rain"></canvas>
+<div class="flash" id="flash"></div>
 
-<div id="plant">🌱</div>
+<div class="window">
 
-<button onclick="waterPlant()">💧 Water Plant</button>
+  <div class="ui">
+    ⭐ Score: <span id="score">0</span><br>
+    <button onclick="addPlant()">New Plant</button>
+    <button onclick="waterAll()">Water Plants</button>
+  </div>
+
+  <div id="garden"></div>
+  <div class="sill"></div>
+
+</div>
 
 <script>
-let stage = 0;
-let coins = 0;
+/* 🌧️ RAIN */
+const canvas = document.getElementById("rain");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
-/* 🌱 plant growth */
-function waterPlant() {
-  stage++;
-  coins += 5;
-
-  document.getElementById("coins").innerText = "💰 Water Points: " + coins;
-
-  const plant = document.getElementById("plant");
-
-  if (stage === 1) plant.textContent = "🌿";
-  if (stage === 2) plant.textContent = "🌳";
-  if (stage === 3) plant.textContent = "🌸";
+let rain = [];
+for(let i=0;i<180;i++){
+  rain.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,len:15+Math.random()*15,s:4+Math.random()*4});
 }
 
-/* 🫧 bubbles */
-function createBubble() {
-  const bubble = document.createElement("div");
-  bubble.className = "bubble";
-  bubble.style.left = Math.random() * window.innerWidth + "px";
-  bubble.style.animationDuration = (3 + Math.random() * 5) + "s";
-  document.body.appendChild(bubble);
-
-  setTimeout(() => bubble.remove(), 8000);
+function drawRain(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle="rgba(180,200,255,0.5)";
+  for(let r of rain){
+    ctx.beginPath();
+    ctx.moveTo(r.x,r.y);
+    ctx.lineTo(r.x,r.y+r.len);
+    ctx.stroke();
+    r.y+=r.s;
+    if(r.y>canvas.height){r.y=-20;r.x=Math.random()*canvas.width;}
+  }
+  requestAnimationFrame(drawRain);
 }
-setInterval(createBubble, 400);
+drawRain();
 
-/* ☔ rain */
-function createRain() {
-  const drop = document.createElement("div");
-  drop.className = "drop";
-  drop.style.left = Math.random() * window.innerWidth + "px";
-  drop.style.animationDuration = (0.5 + Math.random()) + "s";
-  document.body.appendChild(drop);
-
-  setTimeout(() => drop.remove(), 2000);
+/* ⚡ lightning */
+function lightning(){
+  const f=document.getElementById("flash");
+  f.style.opacity=1;
+  setTimeout(()=>f.style.opacity=0,100);
 }
-setInterval(createRain, 100);
+setInterval(()=>{ if(Math.random()>0.7) lightning(); },3000);
 
-/* 🐟 fish */
-function createFish() {
-  const fish = document.createElement("div");
-  fish.className = "fish";
-  fish.textContent = "🐟";
-  fish.style.top = Math.random() * window.innerHeight + "px";
-  fish.style.animationDuration = (8 + Math.random() * 5) + "s";
-  document.body.appendChild(fish);
+/* 🌿 GAME */
+let score=0;
+let plantID=0;
 
-  setTimeout(() => fish.remove(), 12000);
+function update(){
+  document.getElementById("score").innerText=score;
 }
-setInterval(createFish, 3000);
+
+function createPlant(){
+  const p=document.createElement("div");
+  p.className="plant";
+
+  const stem=document.createElement("div");
+  stem.className="stem";
+  p.appendChild(stem);
+
+  return p;
+}
+
+function addPlant(){
+  plantID++;
+  const plant=createPlant();
+  let g=0;
+
+  plant.onclick=function(){
+    g++;
+    score++;
+
+    const leaf=document.createElement("div");
+    leaf.className="leaf";
+    leaf.style.left=(Math.random()*40-20)+"px";
+    leaf.style.bottom=(g*15)+"px";
+    plant.appendChild(leaf);
+
+    if(g>=5){
+      score+=5;
+      plant.remove();
+    }
+
+    update();
+  };
+
+  document.getElementById("garden").appendChild(plant);
+}
+
+/* 💧 watering system */
+function waterAll(){
+  const plants=document.querySelectorAll(".plant");
+  plants.forEach(p=>{
+    score+=1;
+    p.style.transform="scale(1.1)";
+    setTimeout(()=>p.style.transform="scale(1)",200);
+  });
+  update();
+}
+
+/* 🌙 day/night cycle */
+setInterval(()=>{
+  const body=document.body;
+  const hour=new Date().getSeconds()%20;
+  if(hour<10){
+    body.style.background="#0f1620";
+  } else {
+    body.style.background="#1e2b3a";
+  }
+},2000);
 </script>
 
 </body>

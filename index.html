@@ -1,242 +1,143 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Aqua Aero Hybrid Engine</title>
+let scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x03121f, 0.03);
 
-<style>
-body{
-margin:0;
-overflow:hidden;
-font-family:sans-serif;
-background:radial-gradient(circle,#061524,#02070d);
-color:white;
-}
+let camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
 
-/* 🌊 water */
-#water{
-position:fixed;
-width:100%;
-height:100%;
-background:radial-gradient(circle at 50% 50%,rgba(0,255,255,0.07),transparent);
-animation:flow 6s infinite alternate ease-in-out;
-pointer-events:none;
-}
+let renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-@keyframes flow{
-0%{transform:scale(1)}
-100%{transform:scale(1.04)}
-}
+camera.position.set(0, 10, 30);
 
-/* 🪟 tank */
-.tank{
-position:absolute;
-width:92%;
-height:85%;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-background:rgba(255,255,255,0.06);
-backdrop-filter:blur(18px);
-border-radius:30px;
-overflow:hidden;
-border:1px solid rgba(255,255,255,0.2);
-}
+/* 🌊 LIGHTING (deep ocean vibe) */
+let light = new THREE.DirectionalLight(0x88ccff, 1);
+light.position.set(10, 20, 10);
+scene.add(light);
 
-/* 🐠 fish */
-.fish{
-position:absolute;
-width:50px;
-height:25px;
-border-radius:50px;
-cursor:pointer;
-background:linear-gradient(135deg,#4dd2ff,#ffffff33);
-box-shadow:0 0 15px rgba(0,255,255,0.3);
-}
-
-/* 🌿 plants */
-.plant{
-position:absolute;
-bottom:0;
-width:12px;
-border-radius:20px;
-background:linear-gradient(to top,#00ff99,#007755);
-transition:height 1s;
-}
-
-/* 🪸 rare plant glow */
-.plant.rare{
-background:linear-gradient(to top,#ff4df0,#ffd1ff);
-box-shadow:0 0 15px rgba(255,100,255,0.4);
-}
-
-/* UI */
-.ui{
-position:absolute;
-top:15px;
-left:15px;
-padding:12px;
-background:rgba(255,255,255,0.12);
-border-radius:14px;
-backdrop-filter:blur(10px);
-}
-
-button{
-margin:3px;
-padding:6px 10px;
-border-radius:10px;
-border:none;
-cursor:pointer;
-background:rgba(255,255,255,0.25);
-}
-</style>
-</head>
-
-<body>
-
-<div id="water"></div>
-
-<div class="tank" id="tank"></div>
-
-<div class="ui">
-💰 Coins: <span id="coins">100</span><br>
-🌿 Plants: <span id="plants">0</span><br>
-
-<button onclick="plantSeed()">Plant Seed (1💰)</button>
-<button onclick="buyFish()">Buy Fish (10💰)</button>
-<button onclick="harvestAll()">Harvest</button>
-<button onclick="breed()">Breed</button>
-</div>
-
-<script>
+/* 🌊 OCEAN FLOOR */
+let floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(500, 500),
+  new THREE.MeshStandardMaterial({ color: 0x062033 })
+);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
 
 /* ======================
-💰 CORE
+🧭 CAMERA CONTROLS (simple exploration)
 ====================== */
-let coins=100;
+let keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
 
 /* ======================
-🌿 PLANTS SYSTEM
+🐠 FISH AI (schooling system)
 ====================== */
-function plantSeed(){
+let fishGroup = [];
 
-if(coins<1) return;
-coins--;
+function createFish(){
 
-const p=document.createElement("div");
-p.className="plant";
+let fish = new THREE.Group();
 
-let growth=0;
-let rare=Math.random()>0.85;
+let body = new THREE.Mesh(
+  new THREE.SphereGeometry(0.8, 12, 12),
+  new THREE.MeshStandardMaterial({
+    color: Math.random() * 0xffffff
+  })
+);
 
-if(rare) p.classList.add("rare");
+fish.add(body);
 
-p.style.left=Math.random()*800+"px";
-p.style.height="10px";
+fish.position.set(
+  (Math.random() - 0.5) * 100,
+  Math.random() * 20,
+  (Math.random() - 0.5) * 100
+);
 
-/* 🌱 growth cycle */
-let grow=setInterval(()=>{
-growth++;
-
-p.style.height=(10+growth*6)+"px";
-
-if(growth>=10){
-clearInterval(grow);
+scene.add(fish);
+fishGroup.push(fish);
 }
-},1000);
 
-/* 💰 harvest */
-p.onclick=()=>{
-if(growth<5) return;
-
-coins += rare ? 8 : 3;
-p.remove();
-update();
-};
-
-document.getElementById("tank").appendChild(p);
-update();
-}
+/* spawn schools */
+for(let i=0;i<40;i++) createFish();
 
 /* ======================
-🐠 FISH SYSTEM
+🐋 LARGE CREATURES (whale class)
 ====================== */
-function buyFish(){
+let whales = [];
 
-if(coins<10) return;
-coins-=10;
+function spawnWhale(){
 
-const f=document.createElement("div");
-f.className="fish";
+let whale = new THREE.Mesh(
+  new THREE.CapsuleGeometry(3, 10, 4, 8),
+  new THREE.MeshStandardMaterial({ color: 0x335577 })
+);
 
-let x=Math.random()*700;
-let y=100+Math.random()*300;
+whale.position.set(
+  (Math.random()-0.5)*150,
+  10,
+  (Math.random()-0.5)*150
+);
 
-f.style.left=x+"px";
-f.style.top=y+"px";
-
-/* 🐠 swim */
-setInterval(()=>{
-x += Math.sin(Date.now()*0.001)*2;
-y += Math.cos(Date.now()*0.001)*1.5;
-
-f.style.left=x+"px";
-f.style.top=y+"px";
-},50);
-
-/* click info */
-f.onclick=()=>{
-alert("🐠 Healthy aquarium fish");
-};
-
-/* income */
-setInterval(()=>{
-coins+=1;
-update();
-},4000);
-
-document.getElementById("tank").appendChild(f);
-update();
+scene.add(whale);
+whales.push(whale);
 }
+
+/* spawn 3 whales */
+for(let i=0;i<3;i++) spawnWhale();
 
 /* ======================
-🧬 BREEDING (needs rare plants)
+🪸 CORAL / ECOSYSTEM GENERATION
 ====================== */
-function breed(){
+function spawnCoral(){
 
-if(document.querySelectorAll(".plant.rare").length<1){
-alert("Need a rare plant (Aero Bloom) to breed!");
-return;
+let coral = new THREE.Mesh(
+  new THREE.ConeGeometry(1, Math.random()*5+2, 6),
+  new THREE.MeshStandardMaterial({
+    color: new THREE.Color(`hsl(${Math.random()*360},70%,60%)`)
+  })
+);
+
+coral.position.set(
+  (Math.random()-0.5)*200,
+  0,
+  (Math.random()-0.5)*200
+);
+
+scene.add(coral);
 }
 
-alert("🧬 New fish born!");
-
-buyFish();
-buyFish();
-}
+for(let i=0;i<60;i++) spawnCoral();
 
 /* ======================
-🌿 HARVEST ALL
+🌊 GAME LOOP (WORLD SIMULATION)
 ====================== */
-function harvestAll(){
+function animate(){
 
-document.querySelectorAll(".plant").forEach(p=>{
-p.click();
+requestAnimationFrame(animate);
+
+/* 🧭 movement */
+if(keys["w"]) camera.position.z -= 0.5;
+if(keys["s"]) camera.position.z += 0.5;
+if(keys["a"]) camera.position.x -= 0.5;
+if(keys["d"]) camera.position.x += 0.5;
+
+/* 🐠 fish schooling behavior */
+fishGroup.forEach(f => {
+  f.position.x += Math.sin(Date.now()*0.001 + f.position.y)*0.1;
+  f.position.z += Math.cos(Date.now()*0.001 + f.position.x)*0.1;
 });
+
+/* 🐋 whale slow drift */
+whales.forEach(w => {
+  w.position.x += Math.sin(Date.now()*0.0003)*0.05;
+});
+
+renderer.render(scene, camera);
 }
 
-/* ======================
-📊 UPDATE
-====================== */
-function update(){
-document.getElementById("coins").innerText=coins;
-document.getElementById("plants").innerText=
-document.querySelectorAll(".plant").length;
-}
-
-update();
-
-</script>
-
-</body>
-</html>
+animate();

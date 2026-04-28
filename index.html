@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Storm Garden ULTRA</title>
+<title>Storm Garden Simulator</title>
 
 <style>
 body {
@@ -32,7 +32,7 @@ canvas {
   pointer-events: none;
 }
 
-/* 🪟 glass window */
+/* 🪟 window */
 .window {
   position: absolute;
   width: 92%;
@@ -44,8 +44,8 @@ canvas {
   background: rgba(255,255,255,0.06);
   border-radius: 30px;
   border: 1px solid rgba(255,255,255,0.2);
-  backdrop-filter: blur(22px);
-  box-shadow: 0 0 90px rgba(0,0,0,0.7);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 0 80px rgba(0,0,0,0.7);
 }
 
 /* 🌿 garden */
@@ -56,44 +56,13 @@ canvas {
   height: 70%;
 }
 
-/* 🌱 plant (REALISTIC STYLE) */
+/* 🌱 plant (real styled) */
 .plant {
   width: 70px;
   height: 130px;
   position: absolute;
   cursor: pointer;
   transform-origin: bottom center;
-}
-
-/* 🌿 stem (depth gradient) */
-.stem {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 6px;
-  height: 100%;
-  transform: translateX(-50%);
-  background: linear-gradient(to top, #1b4d2d, #4cff9a);
-  border-radius: 50px;
-  box-shadow: 0 0 10px rgba(0,255,160,0.15);
-}
-
-/* 🍃 layered leaves (MORE REALISTIC) */
-.leaf {
-  position: absolute;
-  width: 28px;
-  height: 16px;
-
-  background: radial-gradient(circle at 30% 30%, #9affc8, #1f8f55);
-  border-radius: 100% 0 100% 0;
-
-  opacity: 0.95;
-  filter: blur(0.2px);
-  box-shadow: 0 0 8px rgba(0,255,160,0.2);
-}
-
-/* 🌬️ sway */
-.plant {
   animation: sway 4s ease-in-out infinite;
 }
 
@@ -103,12 +72,33 @@ canvas {
   100% { transform: rotate(-1deg); }
 }
 
-/* ✨ mutation glow */
-.glow {
-  filter: drop-shadow(0 0 14px rgba(0,255,220,0.8));
+/* stem */
+.stem {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 6px;
+  height: 100%;
+  transform: translateX(-50%);
+  background: linear-gradient(to top, #1b4d2d, #4cff9a);
+  border-radius: 50px;
 }
 
-/* 🧊 UI glass */
+/* leaf */
+.leaf {
+  position: absolute;
+  width: 26px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #a8ffd0, #1f8f55);
+  border-radius: 100% 0 100% 0;
+}
+
+/* glow mutation */
+.glow {
+  filter: drop-shadow(0 0 12px rgba(0,255,200,0.8));
+}
+
+/* 🧊 UI */
 .ui {
   position: absolute;
   top: 15px;
@@ -128,6 +118,19 @@ button {
   cursor: pointer;
   background: rgba(255,255,255,0.25);
 }
+
+/* 🎮 tutorial */
+#tutorial {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  color: white;
+  text-align: center;
+}
 </style>
 </head>
 
@@ -136,12 +139,22 @@ button {
 <canvas id="rain"></canvas>
 <div id="flash"></div>
 
+<!-- 🎮 tutorial -->
+<div id="tutorial">
+  <div style="background:rgba(255,255,255,0.1); padding:20px; border-radius:15px; backdrop-filter:blur(10px);">
+    <h2>🌿 Storm Garden</h2>
+    <p>Click “Plant Seed” to start</p>
+    <p>Click plants to grow them</p>
+    <p>Earn score → buy seeds</p>
+    <button onclick="startGame()">Start</button>
+  </div>
+</div>
+
 <div class="window">
 
 <div class="ui">
-⭐ Score: <span id="score">0</span><br>
-🌱 Seeds: <span id="seeds">5</span><br>
-🧬 Mutation: <span id="mut">10%</span><br>
+⭐ Score: <span id="score">5</span><br>
+🌱 Seeds: <span id="seeds">1</span><br>
 
 <button onclick="buySeed()">Buy Seed</button>
 <button onclick="plant()">Plant Seed</button>
@@ -160,10 +173,10 @@ const x=c.getContext("2d");
 c.width=innerWidth;
 c.height=innerHeight;
 
-let rain=Array.from({length:260},()=>({
+let rain=Array.from({length:240},()=>({
 x:Math.random()*c.width,
 y:Math.random()*c.height,
-l:10+Math.random()*20,
+l:10+Math.random()*15,
 s:4+Math.random()*6
 }));
 
@@ -189,60 +202,68 @@ let f=document.getElementById("flash");
 f.style.opacity=1;
 setTimeout(()=>f.style.opacity=0,120);
 }
-},2000);
+},2200);
 
 /* 🌿 GAME */
-let score=0;
-let seeds=5;
-let mutation=0.1;
+let score=5;
+let seeds=1;
+let started=false;
 
 function update(){
 document.getElementById("score").innerText=score;
 document.getElementById("seeds").innerText=seeds;
-document.getElementById("mut").innerText=Math.floor(mutation*100)+"%";
+localStorage.setItem("score",score);
+localStorage.setItem("seeds",seeds);
 }
 
-/* 💰 shop */
+/* 🎮 start game */
+function startGame(){
+document.getElementById("tutorial").remove();
+started=true;
+update();
+}
+
+/* 💰 buy seed */
 function buySeed(){
-if(score>=5){
-score-=5;
+if(score>=3){
+score-=3;
 seeds++;
 update();
 }
 }
 
-/* 🌱 plant creation */
+/* 🌱 plant */
 function plant(){
+if(!started) return;
 if(seeds<=0) return;
+
 seeds--;
 
 const p=document.createElement("div");
 p.className="plant";
 
-let stem=document.createElement("div");
+const stem=document.createElement("div");
 stem.className="stem";
 p.appendChild(stem);
 
-let growth=0;
-let isMutated=Math.random()<mutation;
-
-if(isMutated) p.classList.add("glow");
+let g=0;
+let mutated=Math.random()>0.85;
+if(mutated) p.classList.add("glow");
 
 p.onclick=()=>{
-growth++;
+g++;
 score++;
 
-let leaf=document.createElement("div");
+const leaf=document.createElement("div");
 leaf.className="leaf";
-
 leaf.style.left=(Math.random()*40-20)+"px";
-leaf.style.bottom=(growth*18)+"px";
+leaf.style.bottom=(g*18)+"px";
 leaf.style.transform="rotate("+(Math.random()*80-40)+"deg)";
 
 p.appendChild(leaf);
 
-if(growth>=7){
-score+=15;
+if(g>=7){
+score+=10;
 p.remove();
 }
 
@@ -268,6 +289,10 @@ setInterval(()=>{
 document.body.style.background=
 new Date().getSeconds()%20<10 ? "#0b1420" : "#1b2a3a";
 },2000);
+
+/* load save */
+score = Number(localStorage.getItem("score")) || 5;
+seeds = Number(localStorage.getItem("seeds")) || 1;
 
 update();
 

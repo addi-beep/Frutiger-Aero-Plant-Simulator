@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Storm Garden Simulator</title>
+<title>Storm Garden: Evolution</title>
 
 <style>
 body {
@@ -10,25 +10,22 @@ body {
   overflow: hidden;
   font-family: sans-serif;
   background: #0b1420;
-  transition: background 2s ease;
+  transition: background 2s;
 }
 
-/* 🌧️ rain */
+/* 🌧️ canvas */
 canvas {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 0;
 }
 
 /* ⚡ flash */
 #flash {
   position: fixed;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background: white;
   opacity: 0;
-  z-index: 2;
   pointer-events: none;
 }
 
@@ -40,96 +37,80 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%,-50%);
-
   background: rgba(255,255,255,0.06);
   border-radius: 30px;
+  backdrop-filter: blur(18px);
   border: 1px solid rgba(255,255,255,0.2);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 0 80px rgba(0,0,0,0.7);
 }
 
-/* 🌿 garden */
+/* 🌱 grid pots */
 #garden {
   position: absolute;
   bottom: 110px;
   width: 100%;
   height: 70%;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  padding: 20px;
 }
 
-/* 🌱 plant (real styled) */
-.plant {
+/* 🪴 pot */
+.pot {
   width: 70px;
-  height: 130px;
-  position: absolute;
+  height: 90px;
+  border-radius: 12px;
+  background: rgba(120,80,50,0.4);
+  position: relative;
   cursor: pointer;
-  transform-origin: bottom center;
-  animation: sway 4s ease-in-out infinite;
 }
 
-@keyframes sway {
-  0% { transform: rotate(-1deg); }
-  50% { transform: rotate(2deg); }
-  100% { transform: rotate(-1deg); }
-}
-
-/* stem */
-.stem {
+/* 🌿 plant */
+.plant {
   position: absolute;
-  bottom: 0;
+  bottom: 10px;
   left: 50%;
-  width: 6px;
-  height: 100%;
   transform: translateX(-50%);
-  background: linear-gradient(to top, #1b4d2d, #4cff9a);
-  border-radius: 50px;
+  width: 6px;
+  height: 40px;
+  background: linear-gradient(to top, #1f5d37, #4cff9a);
+  border-radius: 10px;
 }
 
 /* leaf */
 .leaf {
   position: absolute;
-  width: 26px;
-  height: 14px;
-  background: radial-gradient(circle at 30% 30%, #a8ffd0, #1f8f55);
-  border-radius: 100% 0 100% 0;
+  width: 18px;
+  height: 10px;
+  background: #4cff9a;
+  border-radius: 50%;
 }
 
-/* glow mutation */
-.glow {
-  filter: drop-shadow(0 0 12px rgba(0,255,200,0.8));
+/* ghost preview */
+.ghost {
+  position: fixed;
+  width: 70px;
+  height: 90px;
+  background: rgba(255,255,255,0.15);
+  border: 1px dashed rgba(255,255,255,0.5);
+  pointer-events: none;
+  border-radius: 12px;
 }
 
-/* 🧊 UI */
+/* UI */
 .ui {
   position: absolute;
   top: 15px;
   left: 15px;
-  padding: 14px;
-  border-radius: 16px;
+  padding: 12px;
   background: rgba(255,255,255,0.12);
-  backdrop-filter: blur(14px);
   color: white;
+  border-radius: 14px;
+  backdrop-filter: blur(12px);
 }
 
 button {
-  margin-top: 6px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  background: rgba(255,255,255,0.25);
-}
-
-/* 🎮 tutorial */
-#tutorial {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-  color: white;
-  text-align: center;
+  margin-top: 5px;
 }
 </style>
 </head>
@@ -139,26 +120,13 @@ button {
 <canvas id="rain"></canvas>
 <div id="flash"></div>
 
-<!-- 🎮 tutorial -->
-<div id="tutorial">
-  <div style="background:rgba(255,255,255,0.1); padding:20px; border-radius:15px; backdrop-filter:blur(10px);">
-    <h2>🌿 Storm Garden</h2>
-    <p>Click “Plant Seed” to start</p>
-    <p>Click plants to grow them</p>
-    <p>Earn score → buy seeds</p>
-    <button onclick="startGame()">Start</button>
-  </div>
-</div>
-
 <div class="window">
 
 <div class="ui">
-⭐ Score: <span id="score">5</span><br>
-🌱 Seeds: <span id="seeds">1</span><br>
+⭐ Score: <span id="score">0</span><br>
+🌱 Seeds: <span id="seeds">3</span><br>
 
-<button onclick="buySeed()">Buy Seed</button>
-<button onclick="plant()">Plant Seed</button>
-<button onclick="waterAll()">Water</button>
+<button onclick="startBreeding()">Breed Mode</button>
 </div>
 
 <div id="garden"></div>
@@ -167,17 +135,21 @@ button {
 
 <script>
 
-/* 🌧️ RAIN */
+/* ======================
+🌧️ RAIN + SPEED EFFECT
+====================== */
 const c=document.getElementById("rain");
 const x=c.getContext("2d");
 c.width=innerWidth;
 c.height=innerHeight;
 
-let rain=Array.from({length:240},()=>({
+let rainSpeed = 1;
+
+let rain=Array.from({length:200},()=>({
 x:Math.random()*c.width,
 y:Math.random()*c.height,
 l:10+Math.random()*15,
-s:4+Math.random()*6
+s:3+Math.random()*5
 }));
 
 function draw(){
@@ -188,112 +160,158 @@ x.beginPath();
 x.moveTo(r.x,r.y);
 x.lineTo(r.x,r.y+r.l);
 x.stroke();
-r.y+=r.s;
+r.y+=r.s*rainSpeed;
 if(r.y>c.height){r.y=-20;r.x=Math.random()*c.width;}
 });
 requestAnimationFrame(draw);
 }
 draw();
 
-/* ⚡ lightning */
+/* ⚡ thunder sound (synthetic) */
+function thunder(){
+const ctx=new (window.AudioContext||window.webkitAudioContext)();
+const o=ctx.createOscillator();
+const g=ctx.createGain();
+
+o.type="square";
+o.frequency.value=60;
+
+g.gain.setValueAtTime(0.3,ctx.currentTime);
+g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+
+o.connect(g);
+g.connect(ctx.destination);
+
+o.start();
+o.stop(ctx.currentTime+0.5);
+}
+
 setInterval(()=>{
 if(Math.random()>0.8){
-let f=document.getElementById("flash");
-f.style.opacity=1;
-setTimeout(()=>f.style.opacity=0,120);
+document.getElementById("flash").style.opacity=1;
+setTimeout(()=>document.getElementById("flash").style.opacity=0,100);
+thunder();
 }
-},2200);
+},2500);
 
-/* 🌿 GAME */
-let score=5;
-let seeds=1;
-let started=false;
+/* ======================
+🌿 GAME CORE
+====================== */
+let score=0;
+let seeds=3;
+let selectedPot=null;
+let breeding=false;
 
-function update(){
-document.getElementById("score").innerText=score;
-document.getElementById("seeds").innerText=seeds;
-localStorage.setItem("score",score);
-localStorage.setItem("seeds",seeds);
-}
+const garden=document.getElementById("garden");
 
-/* 🎮 start game */
-function startGame(){
-document.getElementById("tutorial").remove();
-started=true;
-update();
-}
+/* 🪴 create pots */
+let pots=[];
+for(let i=0;i<18;i++){
+const p=document.createElement("div");
+p.className="pot";
 
-/* 💰 buy seed */
-function buySeed(){
-if(score>=3){
-score-=3;
-seeds++;
-update();
-}
+p.onclick=()=>placePlant(p);
+
+garden.appendChild(p);
+pots.push(p);
 }
 
-/* 🌱 plant */
-function plant(){
-if(!started) return;
+/* 🌱 ghost preview */
+const ghost=document.createElement("div");
+ghost.className="ghost";
+document.body.appendChild(ghost);
+
+document.addEventListener("mousemove",(e)=>{
+ghost.style.left=e.clientX-35+"px";
+ghost.style.top=e.clientY-45+"px";
+});
+
+/* 🌿 plant placement */
+function placePlant(pot){
 if(seeds<=0) return;
+if(pot.querySelector(".plant")) return;
 
 seeds--;
 
-const p=document.createElement("div");
-p.className="plant";
+const plant=document.createElement("div");
+plant.className="plant";
 
-const stem=document.createElement("div");
-stem.className="stem";
-p.appendChild(stem);
+let growth=0;
+let parentTrait=Math.random();
 
-let g=0;
-let mutated=Math.random()>0.85;
-if(mutated) p.classList.add("glow");
-
-p.onclick=()=>{
-g++;
+plant.onclick=(e)=>{
+e.stopPropagation();
+growth++;
 score++;
 
-const leaf=document.createElement("div");
+let leaf=document.createElement("div");
 leaf.className="leaf";
-leaf.style.left=(Math.random()*40-20)+"px";
-leaf.style.bottom=(g*18)+"px";
-leaf.style.transform="rotate("+(Math.random()*80-40)+"deg)";
+leaf.style.bottom=(growth*6)+"px";
+leaf.style.left=(Math.random()*20-10)+"px";
 
-p.appendChild(leaf);
+plant.appendChild(leaf);
 
-if(g>=7){
+if(growth>=8){
 score+=10;
-p.remove();
+plant.dataset.mature="true";
 }
 
 update();
 };
 
-document.getElementById("garden").appendChild(p);
+pot.appendChild(plant);
 update();
 }
 
-/* 💧 water */
-function waterAll(){
-document.querySelectorAll(".plant").forEach(p=>{
-score++;
-p.style.transform="scale(1.15)";
-setTimeout(()=>p.style.transform="scale(1)",150);
-});
-update();
-}
-
-/* 🌙 ambience */
+/* 🌧️ rain speeds growth */
 setInterval(()=>{
-document.body.style.background=
-new Date().getSeconds()%20<10 ? "#0b1420" : "#1b2a3a";
-},2000);
+rainSpeed = 1 + Math.random()*0.5;
 
-/* load save */
-score = Number(localStorage.getItem("score")) || 5;
-seeds = Number(localStorage.getItem("seeds")) || 1;
+if(Math.random()>0.5){
+document.querySelectorAll(".plant").forEach(p=>{
+p.click();
+});
+}
+},3000);
 
+/* 🧬 breeding system */
+let breedQueue=[];
+
+function startBreeding(){
+breeding=!breeding;
+breedQueue=[];
+}
+
+garden.addEventListener("click",(e)=>{
+if(!breeding) return;
+
+let plant=e.target.closest(".plant");
+if(!plant) return;
+
+breedQueue.push(plant);
+
+if(breedQueue.length===2){
+let p1=breedQueue[0];
+let p2=breedQueue[1];
+
+let mutation=Math.random()>0.5;
+
+if(mutation){
+score+=20;
+}
+
+breedQueue=[];
+update();
+}
+});
+
+/* 📊 update */
+function update(){
+document.getElementById("score").innerText=score;
+document.getElementById("seeds").innerText=seeds;
+}
+
+/* start */
 update();
 
 </script>
